@@ -12,7 +12,8 @@ void main() async {
 
 final database = FirebaseDatabase.instanceFor(
   app: Firebase.app(),
-  databaseURL: 'https://flutter-test-9c5f7-default-rtdb.asia-southeast1.firebasedatabase.app/',
+  databaseURL:
+      'https://flutter-test-9c5f7-default-rtdb.asia-southeast1.firebasedatabase.app/',
 );
 
 class MyApp extends StatelessWidget {
@@ -54,7 +55,8 @@ class _AuthPageState extends State<AuthPage> {
           password: passwordController.text.trim(),
         );
       } else {
-        userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        userCredential =
+            await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
@@ -75,7 +77,7 @@ class _AuthPageState extends State<AuthPage> {
       );
     } on FirebaseAuthException catch (e) {
       setState(() {
-        {        
+        {
           errorMessage = 'Authentication failed. Please try again.';
         }
       });
@@ -110,7 +112,8 @@ class _AuthPageState extends State<AuthPage> {
                 padding: const EdgeInsets.all(8.0),
                 child: Text(
                   errorMessage,
-                  style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: Colors.red, fontWeight: FontWeight.bold),
                 ),
               ),
             TextButton(
@@ -128,11 +131,14 @@ class _AuthPageState extends State<AuthPage> {
 
 // ======================= CHAT ROOM =======================
 
+// ======================= CHAT ROOM DENGAN EDIT / HAPUS =======================
+
 class ChatRoomPage extends StatefulWidget {
   final String userNim;
   final String userName;
 
-  const ChatRoomPage({super.key, required this.userNim, required this.userName});
+  const ChatRoomPage(
+      {super.key, required this.userNim, required this.userName});
 
   @override
   State<ChatRoomPage> createState() => _ChatRoomPageState();
@@ -166,6 +172,61 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     }
   }
 
+  void showOptions(String key, String currentMessage) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Wrap(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.edit),
+            title: const Text('Edit Pesan'),
+            onTap: () {
+              Navigator.pop(context);
+              showEditDialog(key, currentMessage);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete),
+            title: const Text('Hapus Pesan'),
+            onTap: () {
+              Navigator.pop(context);
+              chatRef.child(key).remove();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void showEditDialog(String key, String currentMessage) {
+    TextEditingController editController =
+        TextEditingController(text: currentMessage);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Pesan'),
+        content: TextField(
+          controller: editController,
+          decoration: const InputDecoration(hintText: 'Tulis pesan baru'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              chatRef.child(key).update({'message': editController.text});
+              Navigator.pop(context);
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -191,38 +252,55 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               stream: chatRef.orderByChild('timestamp').onValue,
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
-                  Map<dynamic, dynamic> data = snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
+                  Map<dynamic, dynamic> data =
+                      snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
                   List items = data.entries.toList()
-                    ..sort((a, b) => (a.value['timestamp']).compareTo(b.value['timestamp']));
+                    ..sort((a, b) =>
+                        (a.value['timestamp']).compareTo(b.value['timestamp']));
 
-                  WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
+                  WidgetsBinding.instance
+                      .addPostFrameCallback((_) => scrollToBottom());
 
                   return ListView.builder(
                     controller: _scrollController,
                     itemCount: items.length,
                     itemBuilder: (context, index) {
+                      final key = items[index].key;
                       final item = items[index].value;
                       final from = item['from'];
                       final name = item['name'];
                       final message = item['message'];
                       bool isMe = from == widget.userNim;
 
-                      return Align(
-                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                          decoration: BoxDecoration(
-                            color: isMe ? Colors.blue[100] : Colors.grey[300],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (!isMe)
-                                Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              Text(message),
-                            ],
+                      return GestureDetector(
+                        onLongPress: isMe
+                            ? () {
+                                showOptions(key, message);
+                              }
+                            : null,
+                        child: Align(
+                          alignment: isMe
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 4, horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: isMe ? Colors.blue[100] : Colors.grey[300],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (!isMe)
+                                  Text(name,
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold)),
+                                Text(message),
+                              ],
+                            ),
                           ),
                         ),
                       );
