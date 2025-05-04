@@ -39,8 +39,13 @@ class _AuthPageState extends State<AuthPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool isLogin = true;
+  String errorMessage = '';
 
   void handleAuth() async {
+    setState(() {
+      errorMessage = ''; // Reset the error message
+    });
+
     try {
       UserCredential userCredential;
       if (isLogin) {
@@ -68,10 +73,12 @@ class _AuthPageState extends State<AuthPage> {
           ),
         ),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        {        
+          errorMessage = 'Authentication failed. Please try again.';
+        }
+      });
     }
   }
 
@@ -98,12 +105,20 @@ class _AuthPageState extends State<AuthPage> {
               onPressed: handleAuth,
               child: Text(isLogin ? 'Login' : 'Sign Up'),
             ),
+            if (errorMessage.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  errorMessage,
+                  style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                ),
+              ),
             TextButton(
               onPressed: () => setState(() => isLogin = !isLogin),
               child: Text(isLogin
                   ? "Don't have an account? Sign Up"
                   : "Already have an account? Login"),
-            )
+            ),
           ],
         ),
       ),
@@ -126,6 +141,7 @@ class ChatRoomPage extends StatefulWidget {
 class _ChatRoomPageState extends State<ChatRoomPage> {
   final DatabaseReference chatRef = database.ref().child('roomchat');
   final TextEditingController chatController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   void sendMessage() {
     String text = chatController.text;
@@ -137,6 +153,16 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
       chatController.clear();
+    }
+  }
+
+  void scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -169,7 +195,10 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                   List items = data.entries.toList()
                     ..sort((a, b) => (a.value['timestamp']).compareTo(b.value['timestamp']));
 
+                  WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
+
                   return ListView.builder(
+                    controller: _scrollController,
                     itemCount: items.length,
                     itemBuilder: (context, index) {
                       final item = items[index].value;
