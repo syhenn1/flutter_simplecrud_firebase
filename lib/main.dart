@@ -136,7 +136,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Realtime Database')),
+      appBar: AppBar(title: const Text('Pilih Mahasiswa')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: StreamBuilder(
@@ -158,6 +158,14 @@ class _HomePageState extends State<HomePage> {
                     margin: const EdgeInsets.symmetric(vertical: 8),
                     child: ListTile(
                       title: Text('$nama ($nim)'),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatRoomPage(userNim: nim, userName: nama),
+                          ),
+                        );
+                      },
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -187,6 +195,103 @@ class _HomePageState extends State<HomePage> {
       floatingActionButton: FloatingActionButton(
         onPressed: showTambahDialog,
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+// ---------------- CHAT ROOM PAGE -------------------
+
+class ChatRoomPage extends StatefulWidget {
+  final String userNim;
+  final String userName;
+
+  const ChatRoomPage({super.key, required this.userNim, required this.userName});
+
+  @override
+  State<ChatRoomPage> createState() => _ChatRoomPageState();
+}
+
+class _ChatRoomPageState extends State<ChatRoomPage> {
+  final DatabaseReference chatRef = database.ref().child('chats');
+  final TextEditingController chatController = TextEditingController();
+
+  void sendMessage() {
+    String text = chatController.text;
+    if (text.isNotEmpty) {
+      chatRef.child(widget.userNim).push().set({
+        'from': widget.userNim,
+        'message': text,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+      chatController.clear();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Chat: ${widget.userName}')),
+      body: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder(
+              stream: chatRef.child(widget.userNim).orderByChild('timestamp').onValue,
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
+                  Map<dynamic, dynamic> data = snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
+                  List items = data.entries.toList()
+                    ..sort((a, b) => (a.value['timestamp']).compareTo(b.value['timestamp']));
+
+                  return ListView.builder(
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final item = items[index].value;
+                      final from = item['from'];
+                      final message = item['message'];
+
+                      bool isMe = from == widget.userNim;
+
+                      return Align(
+                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: isMe ? Colors.blue[100] : Colors.grey[300],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(message),
+                        ),
+                      );
+                    },
+                  );
+                }
+                return const Center(child: Text('Belum ada chat'));
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: chatController,
+                    decoration: const InputDecoration(
+                      hintText: 'Ketik pesan...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.send, color: Colors.blue),
+                  onPressed: sendMessage,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
