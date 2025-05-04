@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
+import 'package:firebase_database/firebase_database.dart';
 
-Future<void> main() async {
+final database = FirebaseDatabase.instanceFor(
+  app: Firebase.app(),
+  databaseURL: 'https://flutter-test-9c5f7-default-rtdb.asia-southeast1.firebasedatabase.app/', // Tanpa < >
+);
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -17,75 +22,42 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CRUD Firebase',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'CRUD Mahasiswa'),
+      home: const HomePage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _HomePageState extends State<HomePage> {
+  final DatabaseReference dbRef =
+      database.ref().child('mahasiswa'); // Sudah pakai database yang benar
+
   final TextEditingController nimController = TextEditingController();
   final TextEditingController namaController = TextEditingController();
-  final TextEditingController jurusanController = TextEditingController();
 
-  final CollectionReference mahasiswaCollection =
-      FirebaseFirestore.instance.collection('mahasiswa');
+  void tambahData() {
+    String nim = nimController.text;
+    String nama = namaController.text;
 
-  // CREATE
-  Future<void> tambahData() async {
-    await mahasiswaCollection.doc(nimController.text).set({
-      'nim': nimController.text,
-      'nama': namaController.text,
-      'jurusan': jurusanController.text,
+    dbRef.child(nim).set({
+      'nim': nim,
+      'nama': nama,
     });
-    clearInput();
-  }
 
-  // READ
-  Stream<QuerySnapshot> bacaData() {
-    return mahasiswaCollection.snapshots();
-  }
-
-  // UPDATE
-  Future<void> updateData(String nim) async {
-    await mahasiswaCollection.doc(nim).update({
-      'nama': namaController.text,
-      'jurusan': jurusanController.text,
-    });
-    clearInput();
-  }
-
-  // DELETE
-  Future<void> hapusData(String nim) async {
-    await mahasiswaCollection.doc(nim).delete();
-  }
-
-  void clearInput() {
     nimController.clear();
     namaController.clear();
-    jurusanController.clear();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
+      appBar: AppBar(title: const Text('Realtime Database')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -98,59 +70,32 @@ class _MyHomePageState extends State<MyHomePage> {
               controller: namaController,
               decoration: const InputDecoration(labelText: 'Nama'),
             ),
-            TextField(
-              controller: jurusanController,
-              decoration: const InputDecoration(labelText: 'Jurusan'),
+            ElevatedButton(
+              onPressed: tambahData,
+              child: const Text('Tambah Mahasiswa'),
             ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                ElevatedButton(
-                  onPressed: tambahData,
-                  child: const Text('Tambah'),
-                ),
-                ElevatedButton(
-                  onPressed: () => updateData(nimController.text),
-                  child: const Text('Update'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: bacaData(),
+              child: StreamBuilder(
+                stream: dbRef.onValue,
                 builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return const Text('Error');
+                  if (snapshot.hasData &&
+                      snapshot.data!.snapshot.value != null) {
+                    Map<dynamic, dynamic> data =
+                        snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
+                    List items = data.entries.toList();
+
+                    return ListView.builder(
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final item = items[index].value;
+                        return ListTile(
+                          title: Text('${item['nama']} (${item['nim']})'),
+                        );
+                      },
+                    );
                   }
-
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const CircularProgressIndicator();
-                  }
-
-                  final data = snapshot.data!.docs;
-
-                  return ListView.builder(
-                    itemCount: data.length,
-                    itemBuilder: (context, index) {
-                      final doc = data[index];
-                      return ListTile(
-                        title: Text('${doc['nama']} (${doc['nim']})'),
-                        subtitle: Text(doc['jurusan']),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => hapusData(doc['nim']),
-                        ),
-                        onTap: () {
-                          // Isi field saat ditekan (untuk edit)
-                          nimController.text = doc['nim'];
-                          namaController.text = doc['nama'];
-                          jurusanController.text = doc['jurusan'];
-                        },
-                      );
-                    },
-                  );
+                  return const Text('Belum ada data');
                 },
               ),
             ),
