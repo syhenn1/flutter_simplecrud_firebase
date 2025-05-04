@@ -1,91 +1,117 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'firebase_options.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runApp(const MyApp());
+}
 
 final database = FirebaseDatabase.instanceFor(
   app: Firebase.app(),
   databaseURL: 'https://flutter-test-9c5f7-default-rtdb.asia-southeast1.firebasedatabase.app/',
 );
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  runApp(const MyApp());
-}
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: const SelectUserPage(),
+      title: 'Firebase Chat',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: const AuthPage(),
     );
   }
 }
 
-// ================= HALAMAN PILIH USER =================
+// ======================= AUTH PAGE =======================
 
-class SelectUserPage extends StatefulWidget {
-  const SelectUserPage({super.key});
-
+class AuthPage extends StatefulWidget {
+  const AuthPage({super.key});
   @override
-  State<SelectUserPage> createState() => _SelectUserPageState();
+  State<AuthPage> createState() => _AuthPageState();
 }
 
-class _SelectUserPageState extends State<SelectUserPage> {
-  final DatabaseReference dbRef = database.ref().child('mahasiswa');
+class _AuthPageState extends State<AuthPage> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  bool isLogin = true;
+
+  void handleAuth() async {
+    try {
+      UserCredential userCredential;
+      if (isLogin) {
+        userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
+        );
+      } else {
+        userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
+        );
+        final uid = userCredential.user!.uid;
+        await database.ref('mahasiswa/$uid').set({
+          'email': userCredential.user!.email,
+        });
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatRoomPage(
+            userNim: userCredential.user!.uid,
+            userName: userCredential.user!.email ?? 'User',
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pilih Sebagai User')),
+      appBar: AppBar(title: Text(isLogin ? 'Login' : 'Sign Up')),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: StreamBuilder(
-          stream: dbRef.onValue,
-          builder: (context, snapshot) {
-            if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
-              Map<dynamic, dynamic> data =
-                  snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
-              List items = data.entries.toList();
-
-              return ListView.builder(
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final item = items[index].value;
-                  final nim = item['nim'];
-                  final nama = item['nama'];
-
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    child: ListTile(
-                      title: Text('$nama ($nim)'),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ChatRoomPage(userNim: nim, userName: nama),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              );
-            }
-            return const Center(child: Text('Belum ada data'));
-          },
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: passwordController,
+              decoration: const InputDecoration(labelText: 'Password'),
+              obscureText: true,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: handleAuth,
+              child: Text(isLogin ? 'Login' : 'Sign Up'),
+            ),
+            TextButton(
+              onPressed: () => setState(() => isLogin = !isLogin),
+              child: Text(isLogin
+                  ? "Don't have an account? Sign Up"
+                  : "Already have an account? Login"),
+            )
+          ],
         ),
       ),
     );
   }
 }
 
-// =============== HALAMAN CHAT ROOM GLOBAL ===============
+// ======================= CHAT ROOM =======================
 
 class ChatRoomPage extends StatefulWidget {
   final String userNim;
@@ -117,7 +143,21 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Roomchat - Login sbg: ${widget.userName}')),
+      appBar: AppBar(
+        title: Text('Roomchat - ${widget.userName}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const AuthPage()),
+              );
+            },
+          )
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -136,7 +176,6 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                       final from = item['from'];
                       final name = item['name'];
                       final message = item['message'];
-
                       bool isMe = from == widget.userNim;
 
                       return Align(
@@ -152,10 +191,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               if (!isMe)
-                                Text(
-                                  name,
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                ),
+                                Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                               Text(message),
                             ],
                           ),
