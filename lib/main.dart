@@ -22,121 +22,27 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: const HomePage(),
+      home: const SelectUserPage(),
     );
   }
 }
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+// ================= HALAMAN PILIH USER =================
+
+class SelectUserPage extends StatefulWidget {
+  const SelectUserPage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<SelectUserPage> createState() => _SelectUserPageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _SelectUserPageState extends State<SelectUserPage> {
   final DatabaseReference dbRef = database.ref().child('mahasiswa');
-
-  final TextEditingController nimController = TextEditingController();
-  final TextEditingController namaController = TextEditingController();
-
-  void tambahData(String nim, String nama) {
-    dbRef.child(nim).set({
-      'nim': nim,
-      'nama': nama,
-    });
-  }
-
-  void updateData(String nim, String newName) {
-    dbRef.child(nim).update({'nama': newName});
-  }
-
-  void deleteData(String nim) {
-    dbRef.child(nim).remove();
-  }
-
-  void showTambahDialog() {
-    nimController.clear();
-    namaController.clear();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Tambah Mahasiswa'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nimController,
-                decoration: const InputDecoration(labelText: 'NIM'),
-              ),
-              TextField(
-                controller: namaController,
-                decoration: const InputDecoration(labelText: 'Nama'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                String nim = nimController.text;
-                String nama = namaController.text;
-                if (nim.isNotEmpty && nama.isNotEmpty) {
-                  tambahData(nim, nama);
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Tambah'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void showUpdateDialog(String nim, String currentName) {
-    TextEditingController updateController = TextEditingController(text: currentName);
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Update Nama'),
-          content: TextField(
-            controller: updateController,
-            decoration: const InputDecoration(labelText: 'Nama Baru'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                updateData(nim, updateController.text);
-                Navigator.pop(context);
-              },
-              child: const Text('Update'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pilih Mahasiswa')),
+      appBar: AppBar(title: const Text('Pilih Sebagai User')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: StreamBuilder(
@@ -166,23 +72,6 @@ class _HomePageState extends State<HomePage> {
                           ),
                         );
                       },
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () {
-                              showUpdateDialog(nim, nama);
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              deleteData(nim);
-                            },
-                          ),
-                        ],
-                      ),
                     ),
                   );
                 },
@@ -192,15 +81,11 @@ class _HomePageState extends State<HomePage> {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: showTambahDialog,
-        child: const Icon(Icons.add),
-      ),
     );
   }
 }
 
-// ---------------- CHAT ROOM PAGE -------------------
+// =============== HALAMAN CHAT ROOM GLOBAL ===============
 
 class ChatRoomPage extends StatefulWidget {
   final String userNim;
@@ -213,14 +98,15 @@ class ChatRoomPage extends StatefulWidget {
 }
 
 class _ChatRoomPageState extends State<ChatRoomPage> {
-  final DatabaseReference chatRef = database.ref().child('chats');
+  final DatabaseReference chatRef = database.ref().child('roomchat');
   final TextEditingController chatController = TextEditingController();
 
   void sendMessage() {
     String text = chatController.text;
     if (text.isNotEmpty) {
-      chatRef.child(widget.userNim).push().set({
+      chatRef.push().set({
         'from': widget.userNim,
+        'name': widget.userName,
         'message': text,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
@@ -231,12 +117,12 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Chat: ${widget.userName}')),
+      appBar: AppBar(title: Text('Roomchat - Login sbg: ${widget.userName}')),
       body: Column(
         children: [
           Expanded(
             child: StreamBuilder(
-              stream: chatRef.child(widget.userNim).orderByChild('timestamp').onValue,
+              stream: chatRef.orderByChild('timestamp').onValue,
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
                   Map<dynamic, dynamic> data = snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
@@ -248,6 +134,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                     itemBuilder: (context, index) {
                       final item = items[index].value;
                       final from = item['from'];
+                      final name = item['name'];
                       final message = item['message'];
 
                       bool isMe = from == widget.userNim;
@@ -261,7 +148,17 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                             color: isMe ? Colors.blue[100] : Colors.grey[300],
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text(message),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (!isMe)
+                                Text(
+                                  name,
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              Text(message),
+                            ],
+                          ),
                         ),
                       );
                     },
