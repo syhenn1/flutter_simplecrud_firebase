@@ -21,8 +21,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Firebase Chat',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      title: 'Chat App',
+      theme: ThemeData(
+        primarySwatch: Colors.green,
+        useMaterial3: true,
+      ),
       home: const AuthPage(),
     );
   }
@@ -43,10 +46,7 @@ class _AuthPageState extends State<AuthPage> {
   String errorMessage = '';
 
   void handleAuth() async {
-    setState(() {
-      errorMessage = ''; // Reset the error message
-    });
-
+    setState(() => errorMessage = '');
     try {
       UserCredential userCredential;
       if (isLogin) {
@@ -75,11 +75,9 @@ class _AuthPageState extends State<AuthPage> {
           ),
         ),
       );
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException {
       setState(() {
-        {
-          errorMessage = 'Authentication failed. Please try again.';
-        }
+        errorMessage = 'Authentication failed. Please try again.';
       });
     }
   }
@@ -87,42 +85,81 @@ class _AuthPageState extends State<AuthPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(isLogin ? 'Login' : 'Sign Up')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: handleAuth,
-              child: Text(isLogin ? 'Login' : 'Sign Up'),
-            ),
-            if (errorMessage.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  errorMessage,
-                  style: const TextStyle(
-                      color: Colors.red, fontWeight: FontWeight.bold),
-                ),
+      backgroundColor: Colors.green[50],
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Card(
+            elevation: 8,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.chat, size: 60, color: Colors.green),
+                  const SizedBox(height: 10),
+                  Text(
+                    isLogin ? 'Welcome Back' : 'Create Account',
+                    style: const TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: emailController,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.email),
+                      labelText: 'Email',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  TextFormField(
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.lock),
+                      labelText: 'Password',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (errorMessage.isNotEmpty)
+                    Text(
+                      errorMessage,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: Icon(isLogin ? Icons.login : Icons.person_add),
+                    label: Text(isLogin ? 'Login' : 'Sign Up'),
+                    onPressed: handleAuth,
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => isLogin = !isLogin),
+                    child: Text(
+                      isLogin
+                          ? "Don't have an account? Sign Up"
+                          : "Already have an account? Login",
+                    ),
+                  ),
+                ],
               ),
-            TextButton(
-              onPressed: () => setState(() => isLogin = !isLogin),
-              child: Text(isLogin
-                  ? "Don't have an account? Sign Up"
-                  : "Already have an account? Login"),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -130,8 +167,6 @@ class _AuthPageState extends State<AuthPage> {
 }
 
 // ======================= CHAT ROOM =======================
-
-// ======================= CHAT ROOM DENGAN EDIT / HAPUS =======================
 
 class ChatRoomPage extends StatefulWidget {
   final String userNim;
@@ -231,7 +266,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Roomchat - ${widget.userName}'),
+        title: Text('Chat - ${widget.userName}'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -285,10 +320,18 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                           child: Container(
                             padding: const EdgeInsets.all(12),
                             margin: const EdgeInsets.symmetric(
-                                vertical: 4, horizontal: 8),
+                                vertical: 6, horizontal: 10),
                             decoration: BoxDecoration(
-                              color: isMe ? Colors.blue[100] : Colors.grey[300],
-                              borderRadius: BorderRadius.circular(12),
+                              color:
+                                  isMe ? Colors.green[100] : Colors.grey[200],
+                              borderRadius: BorderRadius.only(
+                                topLeft:
+                                    Radius.circular(isMe ? 12 : 0),
+                                topRight:
+                                    Radius.circular(isMe ? 0 : 12),
+                                bottomLeft: const Radius.circular(12),
+                                bottomRight: const Radius.circular(12),
+                              ),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -311,24 +354,43 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               },
             ),
           ),
+
+          // =========== Chat input ==============
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: chatController,
-                    decoration: const InputDecoration(
-                      hintText: 'Ketik pesan...',
-                      border: OutlineInputBorder(),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.green.shade100),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  )
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: TextField(
+                        controller: chatController,
+                        decoration: const InputDecoration(
+                          hintText: 'Ketik pesan...',
+                          border: InputBorder.none,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.blue),
-                  onPressed: sendMessage,
-                ),
-              ],
+                  IconButton(
+                    icon: const Icon(Icons.send, color: Colors.green),
+                    onPressed: sendMessage,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
