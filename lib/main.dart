@@ -21,6 +21,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Chat App',
       theme: ThemeData(
         primarySwatch: Colors.green,
@@ -30,8 +31,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-// ======================= AUTH PAGE =======================
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -55,8 +54,8 @@ class _AuthPageState extends State<AuthPage> {
           password: passwordController.text.trim(),
         );
       } else {
-        userCredential =
-            await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
@@ -91,8 +90,9 @@ class _AuthPageState extends State<AuthPage> {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Card(
             elevation: 8,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -103,7 +103,9 @@ class _AuthPageState extends State<AuthPage> {
                   Text(
                     isLogin ? 'Welcome Back' : 'Create Account',
                     style: const TextStyle(
-                        fontSize: 22, fontWeight: FontWeight.bold),
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 20),
                   TextFormField(
@@ -130,10 +132,8 @@ class _AuthPageState extends State<AuthPage> {
                   ),
                   const SizedBox(height: 20),
                   if (errorMessage.isNotEmpty)
-                    Text(
-                      errorMessage,
-                      style: const TextStyle(color: Colors.red),
-                    ),
+                    Text(errorMessage,
+                        style: const TextStyle(color: Colors.red)),
                   const SizedBox(height: 10),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
@@ -166,14 +166,15 @@ class _AuthPageState extends State<AuthPage> {
   }
 }
 
-// ======================= CHAT ROOM =======================
-
 class ChatRoomPage extends StatefulWidget {
   final String userNim;
   final String userName;
 
-  const ChatRoomPage(
-      {super.key, required this.userNim, required this.userName});
+  const ChatRoomPage({
+    super.key,
+    required this.userNim,
+    required this.userName,
+  });
 
   @override
   State<ChatRoomPage> createState() => _ChatRoomPageState();
@@ -266,7 +267,23 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chat - ${widget.userName}'),
+        title: Row(
+          children: [
+            CircleAvatar(
+              backgroundImage: AssetImage('assets/images/pfp1.jpg'), 
+              radius: 16,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Chat - ${widget.userName}',
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -280,118 +297,130 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           )
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: StreamBuilder(
-              stream: chatRef.orderByChild('timestamp').onValue,
-              builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
-                  Map<dynamic, dynamic> data =
-                      snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
-                  List items = data.entries.toList()
-                    ..sort((a, b) =>
-                        (a.value['timestamp']).compareTo(b.value['timestamp']));
-
-                  WidgetsBinding.instance
-                      .addPostFrameCallback((_) => scrollToBottom());
-
-                  return ListView.builder(
-                    controller: _scrollController,
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final key = items[index].key;
-                      final item = items[index].value;
-                      final from = item['from'];
-                      final name = item['name'];
-                      final message = item['message'];
-                      bool isMe = from == widget.userNim;
-
-                      return GestureDetector(
-                        onLongPress: isMe
-                            ? () {
-                                showOptions(key, message);
-                              }
-                            : null,
-                        child: Align(
-                          alignment: isMe
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            margin: const EdgeInsets.symmetric(
-                                vertical: 6, horizontal: 10),
-                            decoration: BoxDecoration(
-                              color:
-                                  isMe ? Colors.green[100] : Colors.grey[200],
-                              borderRadius: BorderRadius.only(
-                                topLeft:
-                                    Radius.circular(isMe ? 12 : 0),
-                                topRight:
-                                    Radius.circular(isMe ? 0 : 12),
-                                bottomLeft: const Radius.circular(12),
-                                bottomRight: const Radius.circular(12),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (!isMe)
-                                  Text(name,
-                                      style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold)),
-                                Text(message),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                }
-                return const Center(child: Text('Belum ada chat'));
-              },
+          // Background Image
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/bg.jpg',
+              fit: BoxFit.cover,
             ),
           ),
 
-          // =========== Chat input ==============
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.green.shade100),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  )
-                ],
+          // Chat interface
+          Column(
+            children: [
+              Expanded(
+                child: StreamBuilder(
+                  stream: chatRef.orderByChild('timestamp').onValue,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData &&
+                        snapshot.data!.snapshot.value != null) {
+                      Map<dynamic, dynamic> data =
+                          snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
+                      List items = data.entries.toList()
+                        ..sort((a, b) => (a.value['timestamp'])
+                            .compareTo(b.value['timestamp']));
+
+                      WidgetsBinding.instance
+                          .addPostFrameCallback((_) => scrollToBottom());
+
+                      return ListView.builder(
+                        controller: _scrollController,
+                        itemCount: items.length,
+                        itemBuilder: (context, index) {
+                          final key = items[index].key;
+                          final item = items[index].value;
+                          final from = item['from'];
+                          final name = item['name'];
+                          final message = item['message'];
+                          bool isMe = from == widget.userNim;
+
+                          return GestureDetector(
+                            onLongPress: isMe
+                                ? () => showOptions(key, message)
+                                : null,
+                            child: Align(
+                              alignment: isMe
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 6, horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: isMe
+                                      ? Colors.green[100]?.withOpacity(0.9)
+                                      : Colors.grey[200]?.withOpacity(0.9),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(isMe ? 12 : 0),
+                                    topRight: Radius.circular(isMe ? 0 : 12),
+                                    bottomLeft: const Radius.circular(12),
+                                    bottomRight: const Radius.circular(12),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (!isMe)
+                                      Text(
+                                        name,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    Text(message),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    }
+                    return const Center(child: Text('Belum ada chat'));
+                  },
+                ),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: TextField(
-                        controller: chatController,
-                        decoration: const InputDecoration(
-                          hintText: 'Ketik pesan...',
-                          border: InputBorder.none,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.green.shade100),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      )
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: TextField(
+                            controller: chatController,
+                            decoration: const InputDecoration(
+                              hintText: 'Ketik pesan...',
+                              border: InputBorder.none,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      IconButton(
+                        icon: const Icon(Icons.send, color: Colors.green),
+                        onPressed: sendMessage,
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.send, color: Colors.green),
-                    onPressed: sendMessage,
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),
